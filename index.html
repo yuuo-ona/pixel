@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel Art Converter</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="container">
+        <h1>🎨 Pixel Art Converter</h1>
+        
+        <div class="warning-box">
+          <p>⚠️ <strong>プライバシー保護について:</strong> 画像はサーバーに送信・保存されず、お使いの端末内で安全に処理されます</p>
+        </div>
+
+        <div class="main-content">
+          <!-- Image Upload Section -->
+          <div class="upload-section">
+            <div class="upload-box" id="uploadBox">
+              <input 
+                type="file" 
+                id="imageInput" 
+                accept="image/*" 
+                hidden 
+              />
+              <label for="imageInput" class="upload-label">
+                <div class="upload-icon">📷</div>
+                <p>画像をここにドラッグ&ドロップ</p>
+                <p class="upload-hint">または、クリックしてファイルを選択</p>
+              </label>
+            </div>
+          </div>
+
+          <!-- Controls Section -->
+          <div class="controls-section" id="controlsSection">
+            <div class="control-group">
+              <label for="pixelSize">ドットのサイズ: <span id="pixelSizeValue">15</span>px</label>
+              <input 
+                type="range" 
+                id="pixelSize" 
+                min="2" 
+                max="30" 
+                value="15"
+                class="slider"
+              />
+            </div>
+
+            <div class="control-group">
+              <label for="colorCount">色の数: <span id="colorCountValue">30</span></label>
+              <input 
+                type="range" 
+                id="colorCount" 
+                min="2" 
+                max="256" 
+                value="30"
+                class="slider"
+              />
+            </div>
+
+            <div class="control-group">
+              <label for="outputSize">出力画像サイズ: <span id="outputSizeValue">100</span>%</label>
+              <input 
+                type="range" 
+                id="outputSize" 
+                min="25" 
+                max="200" 
+                value="100"
+                class="slider"
+              />
+            </div>
+          </div>
+
+          <!-- Canvas Section -->
+          <div class="canvas-section" id="canvasSection" style="display: none;">
+            <div class="canvas-container">
+              <canvas id="canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Buttons Section -->
+          <div class="buttons-section" id="buttonsSection" style="display: none;">
+            <button id="downloadBtn" class="btn btn-primary">💾 JPGでダウンロード</button>
+            <button id="resetBtn" class="btn btn-secondary">🔄 もう一度変換</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
