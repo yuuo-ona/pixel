@@ -10,6 +10,7 @@ const colorCountValue = document.getElementById('colorCountValue')
 const outputSizeSlider = document.getElementById('outputSize')
 const outputSizeValue = document.getElementById('outputSizeValue')
 const canvas = document.getElementById('canvas')
+const uploadBoxContent = document.getElementById('uploadBoxContent')
 const downloadBtn = document.getElementById('downloadBtn')
 const resetBtn = document.getElementById('resetBtn')
 const controlsSection = document.getElementById('controlsSection')
@@ -112,7 +113,10 @@ function handleOutputSizeChange(e) {
 
 function showControls() {
   controlsSection.style.display = 'flex'
-  canvasSection.style.display = 'block'
+  uploadBoxContent.style.display = 'none'
+  uploadBox.classList.add('preview-mode')
+  uploadBox.appendChild(canvas)
+  canvasSection.style.display = 'none'
   buttonsSection.style.display = 'flex'
 }
 
@@ -284,6 +288,10 @@ function resetApp() {
   currentColorCount = 30
   currentOutputSize = 100
 
+  uploadBox.classList.remove('preview-mode')
+  uploadBoxContent.style.display = 'block'
+  canvasSection.appendChild(canvas)
+  canvasSection.style.display = 'none'
   initializeControls()
   canvas.width = 0
   canvas.height = 0
