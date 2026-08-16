@@ -216,7 +216,6 @@ function showControls() {
   canvasSection.style.display = 'none'
   buttonsSection.style.display = 'flex'
   canvas.addEventListener('click', handleCanvasCellClick)
-  canvas.addEventListener('touchstart', handleCanvasCellClick)
   updateZoomUI()
 }
 
@@ -224,19 +223,8 @@ function handleCanvasCellClick(event) {
   if (!isEditMode || !currentPixelatedCanvas) return
 
   const rect = canvas.getBoundingClientRect()
-  let clientX, clientY
-
-  // Handle both mouse and touch events
-  if (event.touches) {
-    clientX = event.touches[0].clientX
-    clientY = event.touches[0].clientY
-  } else {
-    clientX = event.clientX
-    clientY = event.clientY
-  }
-
-  const x = clientX - rect.left
-  const y = clientY - rect.top
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
   const pixelX = Math.min(currentPixelatedCanvas.width - 1, Math.max(0, Math.floor((x / rect.width) * currentPixelatedCanvas.width)))
   const pixelY = Math.min(currentPixelatedCanvas.height - 1, Math.max(0, Math.floor((y / rect.height) * currentPixelatedCanvas.height)))
   const imageData = currentPixelatedCanvas.getContext('2d').getImageData(0, 0, currentPixelatedCanvas.width, currentPixelatedCanvas.height)
