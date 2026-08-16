@@ -9,6 +9,12 @@ const colorCountSlider = document.getElementById('colorCount')
 const colorCountValue = document.getElementById('colorCountValue')
 const outputSizeSlider = document.getElementById('outputSize')
 const outputSizeValue = document.getElementById('outputSizeValue')
+const gridLinesToggle = document.getElementById('gridLinesToggle')
+const previewToolbar = document.getElementById('previewToolbar')
+const editBtn = document.getElementById('editBtn')
+const zoomOutBtn = document.getElementById('zoomOutBtn')
+const zoomInBtn = document.getElementById('zoomInBtn')
+const zoomValue = document.getElementById('zoomValue')
 const canvas = document.getElementById('canvas')
 const uploadBoxContent = document.getElementById('uploadBoxContent')
 const downloadBtn = document.getElementById('downloadBtn')
@@ -21,7 +27,71 @@ let originalImage = null
 let currentPixelSize = 15
 let currentColorCount = 30
 let currentOutputSize = 100
+let showGridLines = false
+const gridLineThickness = 2
+const gridLineOpacity = 10
 let currentPixelatedCanvas = null
+let initialPixelatedCanvas = null
+let isEditMode = false
+let selectedCell = null
+let previewZoom = 1
+const minZoom = 1
+const maxZoom = 4
+const paletteColors = [
+  '#000000', '#ffffff', '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#7f00ff', '#ff00ff',
+  '#808080', '#c0c0c0', '#800000', '#808000', '#008000', '#008080', '#000080', '#800080', '#4d4d4d', '#d9d9d9',
+  '#ffb3b3', '#ffd9b3', '#ffffb3', '#b3ffb3', '#b3ffff', '#b3b3ff', '#ffb3ff', '#bfa58a', '#d4a373', '#8b4513'
+]
+
+const colorPaletteModal = document.createElement('div')
+colorPaletteModal.className = 'color-palette-modal'
+colorPaletteModal.innerHTML = `
+  <div class="color-palette-panel">
+    <div class="color-palette-header">
+      <span>色を選択</span>
+      <div class="color-palette-actions">
+        <button type="button" class="palette-revert hidden">戻す</button>
+        <button type="button" class="palette-cancel">キャンセル</button>
+      </div>
+    </div>
+    <div class="color-palette-grid"></div>
+  </div>
+`
+const colorPaletteGrid = colorPaletteModal.querySelector('.color-palette-grid')
+const paletteRevertBtn = colorPaletteModal.querySelector('.palette-revert')
+const paletteCancelBtn = colorPaletteModal.querySelector('.palette-cancel')
+
+document.body.appendChild(colorPaletteModal)
+
+paletteRevertBtn.addEventListener('click', () => {
+  if (selectedCell && currentPixelatedCanvas) {
+    restoreOriginalCellColor()
+  }
+  closeColorPalette()
+})
+
+paletteCancelBtn.addEventListener('click', () => {
+  if (selectedCell && currentPixelatedCanvas) {
+    restoreOriginalCellColor()
+  }
+  closeColorPalette()
+})
+
+function renderPaletteColors() {
+  colorPaletteGrid.innerHTML = ''
+  paletteColors.forEach((color) => {
+    const swatch = document.createElement('button')
+    swatch.type = 'button'
+    swatch.className = 'color-swatch'
+    swatch.style.backgroundColor = color
+    swatch.title = color
+    swatch.setAttribute('aria-label', `色 ${color} を選択`)
+    swatch.addEventListener('click', () => applySelectedColor(color))
+    colorPaletteGrid.appendChild(swatch)
+  })
+}
+
+renderPaletteColors()
 
 function initializeControls() {
   pixelSizeSlider.value = currentPixelSize
@@ -30,6 +100,9 @@ function initializeControls() {
   colorCountValue.textContent = currentColorCount
   outputSizeSlider.value = currentOutputSize
   outputSizeValue.textContent = currentOutputSize
+  gridLinesToggle.checked = showGridLines
+  previewZoom = 1
+  updateZoomUI()
 
   controlsSection.style.display = 'flex'
   canvasSection.style.display = 'none'
@@ -44,6 +117,10 @@ uploadBox.addEventListener('drop', handleDrop)
 pixelSizeSlider.addEventListener('input', handlePixelSizeChange)
 colorCountSlider.addEventListener('input', handleColorCountChange)
 outputSizeSlider.addEventListener('input', handleOutputSizeChange)
+gridLinesToggle.addEventListener('change', handleGridLinesChange)
+editBtn.addEventListener('click', toggleGridEditing)
+zoomOutBtn.addEventListener('click', () => updateZoom(-0.25))
+zoomInBtn.addEventListener('click', () => updateZoom(0.25))
 downloadBtn.addEventListener('click', downloadImage)
 resetBtn.addEventListener('click', resetApp)
 
@@ -106,8 +183,26 @@ function handleColorCountChange(e) {
 function handleOutputSizeChange(e) {
   currentOutputSize = parseInt(e.target.value)
   outputSizeValue.textContent = currentOutputSize
+}
+
+function handleGridLinesChange(e) {
+  showGridLines = e.target.checked
   if (originalImage) {
     convertToPixelArt()
+  }
+}
+
+function toggleGridEditing() {
+  isEditMode = !isEditMode
+  editBtn.classList.toggle('active', isEditMode)
+  if (isEditMode) {
+    showGridLines = true
+    gridLinesToggle.checked = true
+    redrawCanvasFromPixelated()
+  } else {
+    showGridLines = false
+    gridLinesToggle.checked = false
+    redrawCanvasFromPixelated()
   }
 }
 
@@ -116,8 +211,164 @@ function showControls() {
   uploadBoxContent.style.display = 'none'
   uploadBox.classList.add('preview-mode')
   uploadBox.appendChild(canvas)
+  previewToolbar.style.display = 'flex'
+  editBtn.style.display = 'flex'
   canvasSection.style.display = 'none'
   buttonsSection.style.display = 'flex'
+  canvas.addEventListener('click', handleCanvasCellClick)
+  updateZoomUI()
+}
+
+function handleCanvasCellClick(event) {
+  if (!isEditMode || !currentPixelatedCanvas) return
+
+  const rect = canvas.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  const pixelX = Math.min(currentPixelatedCanvas.width - 1, Math.max(0, Math.floor((x / rect.width) * currentPixelatedCanvas.width)))
+  const pixelY = Math.min(currentPixelatedCanvas.height - 1, Math.max(0, Math.floor((y / rect.height) * currentPixelatedCanvas.height)))
+  const imageData = currentPixelatedCanvas.getContext('2d').getImageData(0, 0, currentPixelatedCanvas.width, currentPixelatedCanvas.height)
+  const index = (pixelY * currentPixelatedCanvas.width + pixelX) * 4
+  selectedCell = {
+    x: pixelX,
+    y: pixelY,
+    index,
+    originalColor: [
+      imageData.data[index],
+      imageData.data[index + 1],
+      imageData.data[index + 2],
+      imageData.data[index + 3]
+    ]
+  }
+
+  openColorPalette()
+}
+
+function isSelectedCellEdited() {
+  if (!selectedCell || !currentPixelatedCanvas || !initialPixelatedCanvas) return false
+
+  const currentCtx = currentPixelatedCanvas.getContext('2d')
+  const currentImageData = currentCtx.getImageData(0, 0, currentPixelatedCanvas.width, currentPixelatedCanvas.height)
+  const initialCtx = initialPixelatedCanvas.getContext('2d')
+  const initialImageData = initialCtx.getImageData(0, 0, initialPixelatedCanvas.width, initialPixelatedCanvas.height)
+  
+  const currentR = currentImageData.data[selectedCell.index]
+  const currentG = currentImageData.data[selectedCell.index + 1]
+  const currentB = currentImageData.data[selectedCell.index + 2]
+  const currentA = currentImageData.data[selectedCell.index + 3]
+  
+  const initialR = initialImageData.data[selectedCell.index]
+  const initialG = initialImageData.data[selectedCell.index + 1]
+  const initialB = initialImageData.data[selectedCell.index + 2]
+  const initialA = initialImageData.data[selectedCell.index + 3]
+
+  return currentR !== initialR || currentG !== initialG || currentB !== initialB || currentA !== initialA
+}
+
+function syncPaletteButtons() {
+  const shouldEnableRevert = isSelectedCellEdited()
+  paletteRevertBtn.disabled = !shouldEnableRevert
+}
+
+function openColorPalette() {
+  colorPaletteModal.classList.add('visible')
+  syncPaletteButtons()
+}
+
+function closeColorPalette() {
+  colorPaletteModal.classList.remove('visible')
+  paletteRevertBtn.disabled = true
+  selectedCell = null
+}
+
+function restoreOriginalCellColor() {
+  if (!selectedCell || !currentPixelatedCanvas || !initialPixelatedCanvas) return
+
+  const currentCtx = currentPixelatedCanvas.getContext('2d')
+  const initialCtx = initialPixelatedCanvas.getContext('2d')
+  const initialImageData = initialCtx.getImageData(0, 0, initialPixelatedCanvas.width, initialPixelatedCanvas.height)
+  
+  const currentImageData = currentCtx.getImageData(0, 0, currentPixelatedCanvas.width, currentPixelatedCanvas.height)
+  const [r, g, b, a] = [
+    initialImageData.data[selectedCell.index],
+    initialImageData.data[selectedCell.index + 1],
+    initialImageData.data[selectedCell.index + 2],
+    initialImageData.data[selectedCell.index + 3]
+  ]
+  
+  currentImageData.data[selectedCell.index] = r
+  currentImageData.data[selectedCell.index + 1] = g
+  currentImageData.data[selectedCell.index + 2] = b
+  currentImageData.data[selectedCell.index + 3] = a
+  currentCtx.putImageData(currentImageData, 0, 0)
+  redrawCanvasFromPixelated()
+}
+
+function applySelectedColor(color) {
+  if (!selectedCell || !currentPixelatedCanvas) return
+
+  const ctx = currentPixelatedCanvas.getContext('2d')
+  const imageData = ctx.getImageData(0, 0, currentPixelatedCanvas.width, currentPixelatedCanvas.height)
+  const rgb = hexToRgb(color)
+  imageData.data[selectedCell.index] = rgb.r
+  imageData.data[selectedCell.index + 1] = rgb.g
+  imageData.data[selectedCell.index + 2] = rgb.b
+  imageData.data[selectedCell.index + 3] = 255
+  ctx.putImageData(imageData, 0, 0)
+  redrawCanvasFromPixelated()
+  closeColorPalette()
+}
+
+function updateZoomUI() {
+  zoomValue.textContent = `${Math.round(previewZoom * 100)}%`
+  zoomOutBtn.disabled = previewZoom <= minZoom
+  zoomInBtn.disabled = previewZoom >= maxZoom
+
+  if (currentPixelatedCanvas) {
+    const displayWidth = Math.round(currentPixelatedCanvas.width * currentPixelSize * (currentOutputSize / 100))
+    const displayHeight = Math.round(currentPixelatedCanvas.height * currentPixelSize * (currentOutputSize / 100))
+    canvas.style.width = `${displayWidth * previewZoom}px`
+    canvas.style.height = `${displayHeight * previewZoom}px`
+  }
+}
+
+function updateZoom(step) {
+  previewZoom = Math.min(maxZoom, Math.max(minZoom, Number((previewZoom + step).toFixed(2))))
+  updateZoomUI()
+}
+
+function redrawCanvasFromPixelated() {
+  if (!currentPixelatedCanvas) return
+
+  const displayWidth = Math.round(currentPixelatedCanvas.width * currentPixelSize * (currentOutputSize / 100))
+  const displayHeight = Math.round(currentPixelatedCanvas.height * currentPixelSize * (currentOutputSize / 100))
+  canvas.width = displayWidth
+  canvas.height = displayHeight
+
+  const mainCtx = canvas.getContext('2d')
+  mainCtx.imageSmoothingEnabled = false
+  mainCtx.clearRect(0, 0, displayWidth, displayHeight)
+  mainCtx.drawImage(currentPixelatedCanvas, 0, 0, currentPixelatedCanvas.width, currentPixelatedCanvas.height, 0, 0, displayWidth, displayHeight)
+
+  if (showGridLines) {
+    drawGridLines(mainCtx, currentPixelatedCanvas.width, currentPixelatedCanvas.height, displayWidth, displayHeight)
+  }
+
+  updateZoomUI()
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace('#', '')
+  const value = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized
+
+  const num = Number.parseInt(value, 16)
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  }
 }
 
 function convertToPixelArt() {
@@ -175,12 +426,45 @@ function convertToPixelArt() {
   // Store the full-resolution pixelated canvas for download
   currentPixelatedCanvas = pixelatedCanvas
   
+  // Create and store a copy of the initial pixelated canvas for editing operations
+  initialPixelatedCanvas = document.createElement('canvas')
+  initialPixelatedCanvas.width = pixelatedCanvas.width
+  initialPixelatedCanvas.height = pixelatedCanvas.height
+  const initCtx = initialPixelatedCanvas.getContext('2d')
+  initCtx.drawImage(pixelatedCanvas, 0, 0)
+  
   canvas.width = displayWidth
   canvas.height = displayHeight
-  
-  const mainCtx = canvas.getContext('2d')
-  mainCtx.imageSmoothingEnabled = false
-  mainCtx.drawImage(pixelatedCanvas, 0, 0, pixelatedCanvas.width, pixelatedCanvas.height, 0, 0, displayWidth, displayHeight)
+  redrawCanvasFromPixelated()
+}
+
+function drawGridLines(ctx, pixelWidth, pixelHeight, displayWidth, displayHeight) {
+  const cellWidth = displayWidth / pixelWidth
+  const cellHeight = displayHeight / pixelHeight
+  const maxThickness = Math.max(1, Math.min(gridLineThickness, Math.round(Math.min(cellWidth, cellHeight))))
+
+  ctx.save()
+  ctx.globalAlpha = gridLineOpacity / 100
+  ctx.fillStyle = '#000000'
+
+  for (let y = 0; y < pixelHeight; y++) {
+    for (let x = 0; x < pixelWidth; x++) {
+      const left = x * cellWidth
+      const top = y * cellHeight
+
+      ctx.fillRect(left, top, cellWidth, maxThickness)
+      ctx.fillRect(left, top, maxThickness, cellHeight)
+
+      if (x === pixelWidth - 1) {
+        ctx.fillRect(left + cellWidth - maxThickness, top, maxThickness, cellHeight)
+      }
+      if (y === pixelHeight - 1) {
+        ctx.fillRect(left, top + cellHeight - maxThickness, cellWidth, maxThickness)
+      }
+    }
+  }
+
+  ctx.restore()
 }
 
 function reduceColors(imageData, targetColors) {
@@ -274,9 +558,28 @@ function colorDistance(c1, c2) {
 function downloadImage() {
   if (!currentPixelatedCanvas) return
   
+  // Calculate the display size for download
+  const displayWidth = Math.round(currentPixelatedCanvas.width * currentPixelSize * (currentOutputSize / 100))
+  const displayHeight = Math.round(currentPixelatedCanvas.height * currentPixelSize * (currentOutputSize / 100))
+  
+  // Create a download canvas with the display size
+  const downloadCanvas = document.createElement('canvas')
+  downloadCanvas.width = displayWidth
+  downloadCanvas.height = displayHeight
+  
+  const downloadCtx = downloadCanvas.getContext('2d')
+  downloadCtx.imageSmoothingEnabled = false
+  downloadCtx.drawImage(currentPixelatedCanvas, 0, 0, currentPixelatedCanvas.width, currentPixelatedCanvas.height, 0, 0, displayWidth, displayHeight)
+  
+  // Draw grid lines if enabled
+  if (showGridLines) {
+    drawGridLines(downloadCtx, currentPixelatedCanvas.width, currentPixelatedCanvas.height, displayWidth, displayHeight)
+  }
+  
+  // Download as PNG to preserve transparency
   const link = document.createElement('a')
-  link.href = currentPixelatedCanvas.toDataURL('image/jpeg', 0.95)
-  link.download = 'pixel-art.jpg'
+  link.href = downloadCanvas.toDataURL('image/png')
+  link.download = 'pixel-art.png'
   link.click()
 }
 
@@ -287,13 +590,20 @@ function resetApp() {
   currentPixelSize = 15
   currentColorCount = 30
   currentOutputSize = 100
+  showGridLines = false
+  previewZoom = 1
 
   uploadBox.classList.remove('preview-mode')
   uploadBoxContent.style.display = 'block'
   canvasSection.appendChild(canvas)
+  previewToolbar.style.display = 'none'
+  editBtn.style.display = 'none'
+  editBtn.classList.remove('active')
   canvasSection.style.display = 'none'
   initializeControls()
   canvas.width = 0
   canvas.height = 0
+  canvas.style.width = 'auto'
+  canvas.style.height = 'auto'
   uploadBox.classList.remove('drag-over')
 }
