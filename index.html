@@ -3,13 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pixel Art Converter</title>
+    <title>画像ドット絵メーカー</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <div id="app">
       <div class="container">
-        <h1>🎨 Pixel Art Converter</h1>
+        <img src="/src/assets/site_title.jpeg" alt="画像ドット絵メーカー" class="site-title-image" />
+        
+        <img src="/src/assets/site_features.jpeg" alt="サイト機能紹介" class="site-features-image" />
         
         <div class="warning-box">
           <p>⚠️ <strong>プライバシー保護について:</strong> 画像はサーバーに送信・保存されず、お使いの端末内で安全に処理されます</p>
@@ -19,17 +21,27 @@
           <!-- Image Upload Section -->
           <div class="upload-section">
             <div class="upload-box" id="uploadBox">
+              <div class="preview-toolbar" id="previewToolbar" style="display: none;">
+                <button id="editBtn" class="edit-btn" type="button">編集</button>
+                <div class="zoom-controls" aria-label="画像拡大率">
+                  <button id="zoomOutBtn" type="button" aria-label="拡大を縮小">−</button>
+                  <span id="zoomValue">100%</span>
+                  <button id="zoomInBtn" type="button" aria-label="拡大を拡大">＋</button>
+                </div>
+              </div>
               <input 
                 type="file" 
                 id="imageInput" 
                 accept="image/*" 
                 hidden 
               />
-              <label for="imageInput" class="upload-label">
-                <div class="upload-icon">📷</div>
-                <p>画像をここにドラッグ&ドロップ</p>
-                <p class="upload-hint">または、クリックしてファイルを選択</p>
-              </label>
+              <div id="uploadBoxContent" class="upload-box-content">
+                <label for="imageInput" class="upload-label">
+                  <div class="upload-icon">📷</div>
+                  <p>画像をここにドラッグ&ドロップ</p>
+                  <p class="upload-hint">または、クリックしてファイルを選択</p>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -69,6 +81,13 @@
                 value="100"
                 class="slider"
               />
+            </div>
+
+            <div class="control-group checkbox-group">
+              <label for="gridLinesToggle" class="checkbox-label">
+                <input type="checkbox" id="gridLinesToggle" />
+                <span>マス目表示</span>
+              </label>
             </div>
           </div>
 
