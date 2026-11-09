@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>画像ドット絵メーカー</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-M9VZDQHW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  </script>
+  <body>
+    <div id="app">
+      <div class="container">
+        <img src="./public/site_title.jpeg" alt="画像ドット絵メーカー" class="site-title-image" />
+        
+        <img src="./public/site_features.jpeg" alt="サイト機能紹介" class="site-features-image" />
+        
+        <div class="warning-box">
+          <p>⚠️ <strong>プライバシー保護について:</strong> 画像はサーバーに送信・保存されず、お使いの端末内で安全に処理されます</p>
+        </div>
+
+        <div class="main-content">
+          <!-- Image Upload Section -->
+          <div class="upload-section">
+            <div class="upload-box" id="uploadBox">
+              <div class="preview-toolbar" id="previewToolbar" style="display: none;">
+                <button id="editBtn" class="edit-btn" type="button">編集</button>
+                <div class="zoom-controls" aria-label="画像拡大率">
+                  <button id="zoomOutBtn" type="button" aria-label="拡大を縮小">−</button>
+                  <span id="zoomValue">100%</span>
+                  <button id="zoomInBtn" type="button" aria-label="拡大を拡大">＋</button>
+                </div>
+              </div>
+              <input 
+                type="file" 
+                id="imageInput" 
+                accept="image/*" 
+                hidden 
+              />
+              <div id="uploadBoxContent" class="upload-box-content">
+                <label for="imageInput" class="upload-label">
+                  <div class="upload-icon">📷</div>
+                  <p>画像をここにドラッグ&ドロップ</p>
+                  <p class="upload-hint">または、クリックしてファイルを選択</p>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls Section -->
+          <div class="controls-section" id="controlsSection">
+            <div class="control-group">
+              <label for="pixelSize">ドットのサイズ: <span id="pixelSizeValue">15</span>px</label>
+              <input 
+                type="range" 
+                id="pixelSize" 
+                min="2" 
+                max="30" 
+                value="15"
+                class="slider"
+              />
+            </div>
+
+            <div class="control-group">
+              <label for="colorCount">色の数: <span id="colorCountValue">30</span></label>
+              <input 
+                type="range" 
+                id="colorCount" 
+                min="2" 
+                max="256" 
+                value="30"
+                class="slider"
+              />
+            </div>
+
+            <div class="control-group">
+              <label for="outputSize">出力画像サイズ: <span id="outputSizeValue">100</span>%</label>
+              <input 
+                type="range" 
+                id="outputSize" 
+                min="25" 
+                max="200" 
+                value="100"
+                class="slider"
+              />
+            </div>
+
+            <div class="control-group checkbox-group">
+              <label for="gridLinesToggle" class="checkbox-label">
+                <input type="checkbox" id="gridLinesToggle" />
+                <span>マス目表示</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Canvas Section -->
+          <div class="canvas-section" id="canvasSection" style="display: none;">
+            <div class="canvas-container">
+              <canvas id="canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Buttons Section -->
+          <div class="buttons-section" id="buttonsSection" style="display: none;">
+            <button id="downloadBtn" class="btn btn-primary">💾 JPGでダウンロード</button>
+            <button id="resetBtn" class="btn btn-secondary">🔄 もう一度変換</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
