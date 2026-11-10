@@ -4,7 +4,6 @@ import './style.css'
 const imageInput = document.getElementById('imageInput')
 const uploadBox = document.getElementById('uploadBox')
 const pixelSizeSlider = document.getElementById('pixelSize')
-const pixelSizeValue = document.getElementById('pixelSizeValue')
 const colorCountSlider = document.getElementById('colorCount')
 const colorCountValue = document.getElementById('colorCountValue')
 const outputSizeSlider = document.getElementById('outputSize')
@@ -24,7 +23,15 @@ const canvasSection = document.getElementById('canvasSection')
 const buttonsSection = document.getElementById('buttonsSection')
 
 let originalImage = null
-let currentPixelSize = 15
+// Smartphone photos are large, so use coarser dots by default on narrow screens
+const isMobile = window.matchMedia('(max-width: 768px)').matches
+const defaultPixelSize = isMobile ? 100 : 15
+if (isMobile) {
+  pixelSizeSlider.min = 20
+  pixelSizeSlider.max = 200
+  pixelSizeSlider.step = 5
+}
+let currentPixelSize = defaultPixelSize
 let currentColorCount = 30
 let currentOutputSize = 100
 let showGridLines = false
@@ -96,7 +103,6 @@ renderPaletteColors()
 
 function initializeControls() {
   pixelSizeSlider.value = currentPixelSize
-  pixelSizeValue.textContent = currentPixelSize
   colorCountSlider.value = currentColorCount
   colorCountValue.textContent = currentColorCount
   outputSizeSlider.value = currentOutputSize
@@ -183,7 +189,6 @@ function handleImageLoadError(message) {
 
 function handlePixelSizeChange(e) {
   currentPixelSize = parseInt(e.target.value)
-  pixelSizeValue.textContent = currentPixelSize
   if (originalImage) {
     convertToPixelArt()
   }
@@ -622,7 +627,7 @@ function resetApp() {
   imageInput.value = ''
   originalImage = null
   currentPixelatedCanvas = null
-  currentPixelSize = 15
+  currentPixelSize = defaultPixelSize
   currentColorCount = 30
   currentOutputSize = 100
   showGridLines = false

@@ -54,15 +54,19 @@
           <!-- Controls Section -->
           <div class="controls-section" id="controlsSection">
             <div class="control-group">
-              <label for="pixelSize">ドットのサイズ: <span id="pixelSizeValue">15</span>px</label>
-              <input 
-                type="range" 
-                id="pixelSize" 
-                min="2" 
-                max="30" 
-                value="15"
-                class="slider"
-              />
+              <label for="pixelSize">ドットのサイズ</label>
+              <div class="slider-with-labels">
+                <span class="slider-end-label" aria-hidden="true">小</span>
+                <input 
+                  type="range" 
+                  id="pixelSize" 
+                  min="2" 
+                  max="30" 
+                  value="15"
+                  class="slider"
+                />
+                <span class="slider-end-label" aria-hidden="true">大</span>
+              </div>
             </div>
 
             <div class="control-group">
