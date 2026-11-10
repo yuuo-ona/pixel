@@ -4,7 +4,6 @@ import './style.css'
 const imageInput = document.getElementById('imageInput')
 const uploadBox = document.getElementById('uploadBox')
 const pixelSizeSlider = document.getElementById('pixelSize')
-const pixelSizeValue = document.getElementById('pixelSizeValue')
 const colorCountSlider = document.getElementById('colorCount')
 const colorCountValue = document.getElementById('colorCountValue')
 const outputSizeSlider = document.getElementById('outputSize')
@@ -24,7 +23,15 @@ const canvasSection = document.getElementById('canvasSection')
 const buttonsSection = document.getElementById('buttonsSection')
 
 let originalImage = null
-let currentPixelSize = 15
+// Smartphone photos are large, so use coarser dots by default on narrow screens
+const isMobile = window.matchMedia('(max-width: 768px)').matches
+const defaultPixelSize = isMobile ? 100 : 15
+if (isMobile) {
+  pixelSizeSlider.min = 20
+  pixelSizeSlider.max = 200
+  pixelSizeSlider.step = 5
+}
+let currentPixelSize = defaultPixelSize
 let currentColorCount = 30
 let currentOutputSize = 100
 let showGridLines = false
@@ -37,6 +44,7 @@ let selectedCell = null
 let previewZoom = 1
 const minZoom = 1
 const maxZoom = 4
+const MAX_WORK_PIXELS = 2_000_000
 const paletteColors = [
   '#000000', '#ffffff', '#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#7f00ff', '#ff00ff',
   '#808080', '#c0c0c0', '#800000', '#808000', '#008000', '#008080', '#000080', '#800080', '#4d4d4d', '#d9d9d9',
@@ -95,7 +103,6 @@ renderPaletteColors()
 
 function initializeControls() {
   pixelSizeSlider.value = currentPixelSize
-  pixelSizeValue.textContent = currentPixelSize
   colorCountSlider.value = currentColorCount
   colorCountValue.textContent = currentColorCount
   outputSizeSlider.value = currentOutputSize
@@ -156,17 +163,32 @@ function handleImageSelect() {
     const img = new Image()
     img.onload = () => {
       originalImage = img
-      showControls()
-      convertToPixelArt()
+      try {
+        showControls()
+        convertToPixelArt()
+      } catch (error) {
+        console.error(error)
+        handleImageLoadError('画像の変換に失敗しました。サイズの小さい画像でお試しください。')
+      }
+    }
+    img.onerror = () => {
+      handleImageLoadError('この画像は読み込めませんでした。JPEG または PNG 形式の画像でお試しください。')
     }
     img.src = e.target.result
+  }
+  reader.onerror = () => {
+    handleImageLoadError('ファイルの読み込みに失敗しました。もう一度お試しください。')
   }
   reader.readAsDataURL(file)
 }
 
+function handleImageLoadError(message) {
+  resetApp()
+  alert(message)
+}
+
 function handlePixelSizeChange(e) {
   currentPixelSize = parseInt(e.target.value)
-  pixelSizeValue.textContent = currentPixelSize
   if (originalImage) {
     convertToPixelArt()
   }
@@ -327,10 +349,22 @@ function updateZoomUI() {
   if (currentPixelatedCanvas) {
     const displayWidth = Math.round(currentPixelatedCanvas.width * currentPixelSize * (currentOutputSize / 100))
     const displayHeight = Math.round(currentPixelatedCanvas.height * currentPixelSize * (currentOutputSize / 100))
-    canvas.style.width = `${displayWidth * previewZoom}px`
-    canvas.style.height = `${displayHeight * previewZoom}px`
+    // 100% zoom = fit the preview area (never upscale beyond actual size)
+    const fitScale = getPreviewFitScale(displayWidth, displayHeight)
+    canvas.style.width = `${Math.round(displayWidth * fitScale * previewZoom)}px`
+    canvas.style.height = `${Math.round(displayHeight * fitScale * previewZoom)}px`
   }
 }
+
+function getPreviewFitScale(displayWidth, displayHeight) {
+  if (!uploadBox.classList.contains('preview-mode') || !displayWidth || !displayHeight) return 1
+  const maxWidth = uploadBox.clientWidth
+  const maxHeight = window.innerHeight * 0.7
+  if (!maxWidth) return 1
+  return Math.min(1, maxWidth / displayWidth, maxHeight / displayHeight)
+}
+
+window.addEventListener('resize', updateZoomUI)
 
 function updateZoom(step) {
   previewZoom = Math.min(maxZoom, Math.max(minZoom, Number((previewZoom + step).toFixed(2))))
@@ -376,24 +410,30 @@ function convertToPixelArt() {
   const tempCanvas = document.createElement('canvas')
   const tempCtx = tempCanvas.getContext('2d')
   
-  // Set canvas size to original image size
-  tempCanvas.width = originalImage.width
-  tempCanvas.height = originalImage.height
-  
+  // Downscale the working canvas so large photos (e.g. iPhone) stay within mobile memory limits.
+  // Dot count and output size are still based on the original image size.
+  const sourceWidth = originalImage.width
+  const sourceHeight = originalImage.height
+  const workScale = Math.min(1, Math.sqrt(MAX_WORK_PIXELS / (sourceWidth * sourceHeight)))
+  tempCanvas.width = Math.max(1, Math.round(sourceWidth * workScale))
+  tempCanvas.height = Math.max(1, Math.round(sourceHeight * workScale))
+  const scaleX = tempCanvas.width / sourceWidth
+  const scaleY = tempCanvas.height / sourceHeight
+
   // Draw original image
-  tempCtx.drawImage(originalImage, 0, 0)
-  
+  tempCtx.drawImage(originalImage, 0, 0, tempCanvas.width, tempCanvas.height)
+
   // Get image data
   const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
   const data = imageData.data
-  
+
   // Reduce colors using k-means clustering
   const coloredData = reduceColors(data, currentColorCount)
-  
+
   // Create pixelated version
   const pixelatedCanvas = document.createElement('canvas')
-  const pixelWidth = Math.ceil(tempCanvas.width / currentPixelSize)
-  const pixelHeight = Math.ceil(tempCanvas.height / currentPixelSize)
+  const pixelWidth = Math.ceil(sourceWidth / currentPixelSize)
+  const pixelHeight = Math.ceil(sourceHeight / currentPixelSize)
   
   pixelatedCanvas.width = pixelWidth
   pixelatedCanvas.height = pixelHeight
@@ -404,8 +444,8 @@ function convertToPixelArt() {
   // Sample image data at pixel intervals and create pixelated version
   for (let y = 0; y < pixelHeight; y++) {
     for (let x = 0; x < pixelWidth; x++) {
-      const sampleX = Math.floor((x * currentPixelSize + currentPixelSize / 2) % tempCanvas.width)
-      const sampleY = Math.floor((y * currentPixelSize + currentPixelSize / 2) % tempCanvas.height)
+      const sampleX = Math.min(tempCanvas.width - 1, Math.floor(((x * currentPixelSize + currentPixelSize / 2) % sourceWidth) * scaleX))
+      const sampleY = Math.min(tempCanvas.height - 1, Math.floor(((y * currentPixelSize + currentPixelSize / 2) % sourceHeight) * scaleY))
       const index = (sampleY * tempCanvas.width + sampleX) * 4
       
       const r = coloredData[index]
@@ -587,7 +627,7 @@ function resetApp() {
   imageInput.value = ''
   originalImage = null
   currentPixelatedCanvas = null
-  currentPixelSize = 15
+  currentPixelSize = defaultPixelSize
   currentColorCount = 30
   currentOutputSize = 100
   showGridLines = false

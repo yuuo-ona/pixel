@@ -127,6 +127,9 @@ h1 {
   background: var(--surface);
   border-style: solid;
   overflow: auto;
+  /* flex-start + margin:auto keeps zoomed canvas scrollable from its left/top edge */
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .upload-box.preview-mode canvas {
@@ -136,7 +139,7 @@ h1 {
   max-width: none;
   max-height: none;
   object-fit: contain;
-  margin: 0;
+  margin: auto;
 }
 
 .preview-toolbar {
@@ -367,6 +370,19 @@ h1 {
 .color-swatch:hover {
   transform: translateY(-1px);
   border-color: rgba(15, 23, 42, 0.25);
+}
+
+.slider-with-labels {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-end-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
 }
 
 .slider {
