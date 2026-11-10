@@ -378,6 +378,20 @@ h1 {
   gap: 10px;
 }
 
+.mobile-note {
+  display: none;
+  margin: 0 0 -12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-light);
+}
+
+@media (max-width: 768px) {
+  .mobile-note {
+    display: block;
+  }
+}
+
 .slider-end-label {
   flex-shrink: 0;
   font-size: 13px;
