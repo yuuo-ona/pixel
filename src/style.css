@@ -378,6 +378,13 @@ h1 {
   gap: 10px;
 }
 
+.upload-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-light);
+}
+
 .mobile-note {
   display: none;
   margin: 0 0 -12px;
